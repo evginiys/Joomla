@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<extension version="3.4" type="plugin" method="upgrade" group="vmpayment">
+    <name>Portmone.com</name>
+    <creationDate>09.2021</creationDate>
+    <author>Portmone.com</author>
+    <authorUrl>https://www.portmone.com.ua/r3/</authorUrl>
+    <copyright>Copyright (C) 2021 Portmone.com. All rights reserved.</copyright>
+    <license>https://www.portmone.com.ua/r3/uk/security/ Payment Card Industry Data Security Standard (PCI DSS)</license>
+    <version status="final">2.0.0</version>
+    <description><![CDATA[Portmone.com - система приема платежей.]]></description>
+
+    <languages>
+        <language tag="en-GB">language/en-GB/en-GB.plg_vmpayment_portmone.ini</language>
+        <language tag="ru-RU">language/ru-RU/ru-RU.plg_vmpayment_portmone.ini</language>
+        <language tag="uk-UA">language/uk-UA/uk-UA.plg_vmpayment_portmone.ini</language>
+    </languages>
+    <files>
+        <filename plugin="portmone">portmone.php</filename>
+		<folder>images</folder>
+		<folder>language</folder>
+        <folder>portmone</folder>
+    </files>
+
+    <vmconfig>
+        <fields name="params">
+            <fieldset name="payment" addfieldpath="/administrator/components/com_virtuemart/fields">
+        <field type="text" size="100" default="" name="user_id" label="PORTMONE_PAYSYSTEM_USER_ID" description="PORTMONE_PAYSYSTEM_USER_ID_DESC"/>
+        <field type="text" size="100" default="" name="user_login" label="PORTMONE_PAYSYSTEM_USER_LOGIN" description="PORTMONE_PAYSYSTEM_USER_LOGIN_DESC"/>
+        <field type="text" size="100" default="" name="user_password" label="PORTMONE_PAYSYSTEM_USER_PASSWORD" description="PORTMONE_PAYSYSTEM_USER_PASSWORD_DESC"/>
+        <field name="payment_logos"  type="radio" default="no" label="PORTMONE_PAYSYSTEM_LOGOS"
+               description="PORTMONE_PAYSYSTEM_LOGOS_DESC">
+            <option value="no">PORTMONE_PAYSYSTEM_LOGOS_NO</option>
+            <option value="portmone-logo.svg">PORTMONE_PAYSYSTEM_LOGOS_YES</option>
+        </field>
+        <field type="text" size="100" default="" name="user_desc" label="PORTMONE_PAYSYSTEM_DESC" description="PORTMONE_PAYSYSTEM_DESC_DESC"/>
+        <field type="vmorderstate" scope="com_virtuemart" name="status_success"  default="C" label="PORTMONE_PAYSYSTEM_SUCCESS" description="PORTMONE_PAYSYSTEM_SUCCESS_DESC" />
+        <field type="vmorderstate" scope="com_virtuemart" name="status_canceled"  default="X" label="PORTMONE_PAYSYSTEM_CANCEL" description="PORTMONE_PAYSYSTEM_CANCEL_DESC" />
+            </fieldset>
+        </fields>
+    </vmconfig>
+
+</extension>
