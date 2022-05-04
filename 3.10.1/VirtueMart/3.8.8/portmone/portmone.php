@@ -6,7 +6,7 @@
  *
  * @category        Portmone.com
  * @package         portmone.paysystem
- * @version         2.0.0
+ * @version         1.0.0
  * @author          Portmone.com
  * @copyright       Copyright (c) 2018 Portmone.com
  * @license         Payment Card Industry Data Security Standard (PCI DSS)
@@ -14,7 +14,7 @@
  *
  * EXTENSION INFORMATION
  *
- * Joomla! 3.10.1
+ * Joomla! 3.8.4
  */
 
 checkForbidden();
@@ -28,7 +28,7 @@ class plgVmPaymentPortmone extends vmPSPlugin {
     const GATEWAY_URL           = "https://www.portmone.com.ua/gateway/";
 
     public static $_this = false;
-    
+
     function __construct(&$subject, $config) {
         parent::__construct($subject, $config);
         (JFactory::getLanguage())->load('plg_vmpayment_portmone', JPATH_ADMINISTRATOR, NULL, TRUE);
@@ -40,6 +40,8 @@ class plgVmPaymentPortmone extends vmPSPlugin {
             'user_id'         => array('','string'),
             'user_login'      => array('','string'),
             'user_password'   => array('','string'),
+			'exp_time'		  => array('','string'),
+			'key'			  => array('','string'),
             'payment_logos'   => array('','char'),
             'user_desc'       => array('','char'),
             'status_success'  => array('','char'),
@@ -288,11 +290,16 @@ class plgVmPaymentPortmone extends vmPSPlugin {
                             'shop_order_number' => $order['details']['BT']->order_number .'_'. time(),
                             'bill_amount'       => $amount,
                             'description'       => $order['details']['BT']->order_number,
+							'exp_time'       	=> $method->exp_time,
+							'dt'       			=> date('Ymdhis'),
                             'success_url'       => $responseUrl,
                             'failure_url'       => $callbackUrl,
                             'lang'              => strtoupper($lang),
-                            'cms_module_name'   => json_encode(['name' => 'Joomla', 'v' => (new JVersion)->getShortVersion()]),
                             'encoding'          => 'UTF-8');
+		$signature					= $formFields['payee_id'].$formFields['dt'].bin2hex($formFields['shop_order_number']).$formFields['bill_amount'] ;
+		$signature 					= strtoupper($signature).strtoupper(bin2hex($method->user_login));
+		$signature 					= strtoupper(hash_hmac('sha256', $signature, $method->key));
+		$formFields['signature']    = $signature;
 
         $portmoneArgsArray = array();
         foreach ($formFields as $key => $value) {
@@ -316,22 +323,7 @@ class plgVmPaymentPortmone extends vmPSPlugin {
                  }, 100);
                 </script>";
 
-        vRequest::setVar('html', $html);
-
-        return $this->processConfirmedOrderPaymentResponse(true, $cart, $order, $html, $this->renderPluginName($method, $order), 'P');
-    }
-
-    /**
-     * @param $shopnumber
-     *
-     * @return bool|string
-     */
-    function portmone_get_order_id($shopnumber) {
-        $shopnumbercount = strpos($shopnumber, "_");
-        if ($shopnumbercount == false){
-            return $shopnumber;
-        }
-        return substr($shopnumber, 0, $shopnumbercount);
+       return $this->processConfirmedOrderPaymentResponse(true, $cart, $order, $html, $this->renderPluginName($method, $order), 'P');
     }
 
     /**
@@ -339,7 +331,13 @@ class plgVmPaymentPortmone extends vmPSPlugin {
      */
     public function plgVmOnPaymentNotification() {
         $callback = JRequest::get( 'post' );
-        $order_id = $this->portmone_get_order_id($callback['SHOPORDERNUMBER']);
+        if (!empty($callback['SHOPORDERNUMBER'])){
+            list($order_id,) = explode('_', $callback['SHOPORDERNUMBER']);
+        }
+
+        if (!($method = $this->getVmPluginMethod($method_id))) {
+            return null; // Another method was selected, do nothing
+        }
 
         if (!class_exists('VirtueMartModelOrders'))
             require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
@@ -364,116 +362,12 @@ class plgVmPaymentPortmone extends vmPSPlugin {
         );
 
         $result_portmone = $this->curlRequest(self::GATEWAY_URL, $data);
-        $orderitems                         = $order->getOrder($order_s_id);
-        $orderitems['virtuemart_order_id']  = $order_s_id;
-
-        if ($result_portmone === false) {
-            $orderitems['customer_notified']    = 0;
-            $orderitems['comments']             = '#1P '.'Curl request error';
-            $order->updateStatusForOneOrder($order_s_id, $orderitems);
-        }
-
         $parseXml = $this->parseXml($result_portmone);
 
-        if ($parseXml === false) {
-            $order_note_text = $this->matchesError($result_portmone);
-
-            if ($order_note_text != false) {
-                $orderitems['customer_notified']    = 1;
-                $orderitems['comments']             = '#2P '.trim($order_note_text);
-                $order->updateStatusForOneOrder($order_s_id, $orderitems);
-            }
-
-            $orderitems['customer_notified']    = 0;
-            $orderitems['comments']             = '#3P '.'Xml empty';
-            $order->updateStatusForOneOrder($order_s_id, $orderitems);
-
-            if ($_POST['RESULT'] !== '0') {
-                $orderitems['customer_notified']    = 1;
-                $orderitems['order_status']         = $method->status_canceled;
-                $msg = 'Ошибка авторизации. Введен не верный логин или пароль' . ' ' . $_POST['RESULT'] ;
-                $orderitems['comments']             = '#4P '.$msg ;
-                $order->updateStatusForOneOrder($order_s_id, $orderitems);
-                $this->redirectToOrder($msg, $orderitems);
-                return false;
-            } else {
-                $orderitems['customer_notified']    = 1;
-                $orderitems['order_status']         = $method->status_success;
-                $msg = 'Спасибо за покупку!' . ' Номер вашего заказа' . ': ' . $order_s_id ;
-                $orderitems['comments']             = '#5P '.$msg ;
-                $order->updateStatusForOneOrder($order_s_id, $orderitems);
-                $this->redirectToOrder($msg, $orderitems);
-                return false;
-            }
-        }
-
-        $payee_id_return = (array)$parseXml->request->payee_id;
-        $order_data = (array)$parseXml->orders->order;
-
-        if ($_POST['RESULT'] !== '0') {
-            $orderitems['customer_notified']    = 1;
-            $orderitems['order_status']         = $method->status_canceled;
-            $msg = $_POST['RESULT'] ;
-            $orderitems['comments']             = '#6P '.$msg ;
-            $order->updateStatusForOneOrder($order_s_id, $orderitems);
-            $this->redirectToOrder($msg, $orderitems);
-            return false;
-        }
-
-        if ($payee_id_return[0] != $method->user_id ) {
-            $orderitems['customer_notified']    = 1;
-            $orderitems['order_status']         = $method->status_canceled;
-            $msg = 'При совершении оплаты возникла ошибка. Данные Интернет-магазина некорректны';
-            $orderitems['comments']             = '#7P '.$msg ;
-            $order->updateStatusForOneOrder($order_s_id, $orderitems);
-            $this->redirectToOrder($msg, $orderitems);
-            return false;
-        }
-
-
-        if (count($parseXml->orders->order) == 0) {
-            $orderitems['customer_notified']    = 1;
-            $orderitems['order_status']         = $method->status_canceled;
-            $msg = 'В системе Portmone данного платежа нет, он возвращен или создан некорректно';
-            $orderitems['comments']             = '#8P '.$msg ;
-            $order->updateStatusForOneOrder($order_s_id, $orderitems);
-            $this->redirectToOrder($msg, $orderitems);
-            return false;
-        } elseif (count($parseXml->orders->order) > 1){
-            $no_pay = false;
-            foreach($parseXml->orders->order as $orderXml ){
-                $status = (array)$orderXml->status;
-                if ($status[0] == self::ORDER_PAYED){
-                    if($orderitems['order_status'] !== $method->status_success){
-                        $orderitems['customer_notified']    = 1;
-                        $orderitems['order_status']         = $method->status_success;
-                        $msg = 'Спасибо за покупку!' . ' Номер вашего заказа' . ': ' . $order_s_id ;
-                        $orderitems['comments']             = '#9P '.$msg ;
-                        $order->updateStatusForOneOrder($order_s_id, $orderitems);
-                    }
-                    $no_pay = true;
-                    break;
-                }
-            }
-
-            if ($no_pay == false) {
-                $orderitems['customer_notified']    = 1;
-                $orderitems['order_status']         = $method->status_canceled;
-                $msg = 'В системе Portmone данного платежа нет, он возвращен или создан некорректно';
-                $orderitems['comments']             = '#10P '.$msg ;
-                $order->updateStatusForOneOrder($order_s_id, $orderitems);
-                $this->redirectToOrder($msg, $orderitems);
-                return false;
-            } else {
-                $this->redirectToOrder($msg, $orderitems);
-                return false;
-            }
-        }
-
-        if ($order_data['status'] != self::ORDER_PAYED) {
+        if ($parseXml->orders->order->status != self::ORDER_PAYED) {
             $answer = $method->status_canceled;
             $msg = vmText::sprintf('HEADING_TITLE_FAILURE');
-        } elseif ($order_data['status'] == self::ORDER_PAYED) {
+        } elseif ($parseXml->orders->order->status == self::ORDER_PAYED) {
             $answer = $method->status_success;
             $msg = vmText::sprintf('HEADING_TITLE_SUCCESS');
         }
@@ -482,15 +376,9 @@ class plgVmPaymentPortmone extends vmPSPlugin {
         $orderitems['order_status']         = $answer;
         $orderitems['customer_notified']    = 1;
         $orderitems['virtuemart_order_id']  = $order_s_id;
-        $orderitems['comments']             = $msg. ' ID: '.$order_id;
-        $order->updateStatusForOneOrder($order_s_id, $orderitems);
+        $orderitems['comments']             = 'ID: '.$order_id;
+        $order->updateStatusForOneOrder($order_s_id, $orderitems, true);
         $this->redirectToOrder($msg, $orderitems);
-    }
-
-    function matchesError($result_portmone) {
-        $pattern = '#<div class=\"response error\">(.*?)</div>#is';
-        preg_match($pattern, $result_portmone, $matches);
-        return (isset($matches[0]))? strip_tags($matches[0]) : false ;
     }
 
     /**

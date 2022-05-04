@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <extension version="3.4" type="plugin" method="upgrade" group="vmpayment">
     <name>Portmone.com</name>
-    <creationDate>09.2021</creationDate>
+    <creationDate>11.2018</creationDate>
     <author>Portmone.com</author>
     <authorUrl>https://www.portmone.com.ua/r3/</authorUrl>
-    <copyright>Copyright (C) 2021 Portmone.com. All rights reserved.</copyright>
+    <copyright>Copyright (C) 2018 Portmone.com. All rights reserved.</copyright>
     <license>https://www.portmone.com.ua/r3/uk/security/ Payment Card Industry Data Security Standard (PCI DSS)</license>
-    <version status="final">2.0.0</version>
+    <version status="final">1.0.0</version>
     <description><![CDATA[Portmone.com - система приема платежей.]]></description>
 
     <languages>
@@ -27,6 +27,8 @@
         <field type="text" size="100" default="" name="user_id" label="PORTMONE_PAYSYSTEM_USER_ID" description="PORTMONE_PAYSYSTEM_USER_ID_DESC"/>
         <field type="text" size="100" default="" name="user_login" label="PORTMONE_PAYSYSTEM_USER_LOGIN" description="PORTMONE_PAYSYSTEM_USER_LOGIN_DESC"/>
         <field type="text" size="100" default="" name="user_password" label="PORTMONE_PAYSYSTEM_USER_PASSWORD" description="PORTMONE_PAYSYSTEM_USER_PASSWORD_DESC"/>
+				<field type="text" size="100" default="" name="exp_time" label="PORTMONE_PAYSYSTEM_EXP_TIME" description="PORTMONE_PAYSYSTEM_EXP_TIME_DESC"/>
+				<field type="text" size="100" default="" name="key" label="PORTMONE_PAYSYSTEM_KEY" description="PORTMONE_PAYSYSTEM_KEY_DESC"/>
         <field name="payment_logos"  type="radio" default="no" label="PORTMONE_PAYSYSTEM_LOGOS"
                description="PORTMONE_PAYSYSTEM_LOGOS_DESC">
             <option value="no">PORTMONE_PAYSYSTEM_LOGOS_NO</option>
